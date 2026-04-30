@@ -111,6 +111,11 @@ rect {
   fill: none;
   stroke: black;
 }
+
 .top {
   stroke-dasharray: 10, 0, 0;
+}
+
+#my-folder {
+  touch-action: none;
 }

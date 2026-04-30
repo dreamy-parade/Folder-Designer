@@ -2,6 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Folder Designer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,23 +12,22 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
-    <script src="assets/main.js"></script>
     <script src="assets/svg.js"></script>
   </head>
 
   <body class="bg-gray-100">
   
-    <div id="app" class="flex h-screen flex-row-reverse shadow">
+    <div id="app" class="flex h-screen flex-col-reverse md:flex-row-reverse">
 
       <!-- サイドバー -->
-      <aside class="w-80 bg-white p-8 overflow-y-auto overflow-x-hidden space-y-6">
+      <aside class="w-full md:w-80 bg-white p-8 overflow-y-auto overflow-x-hidden space-y-6">
 
         <!-- カラー -->
         <h2 class="text-2xl font-bold flex p-1 gap-1 items-center border-b-2">
           <div class="w-3 h-3 bg-gray-400 rounded-full"></div>
           Color
         </h2>
-        <div class="grid auto-cols-max gap-2 justify-items-start justify-between">
+        <div class="grid auto-cols-max gap-2 justify-items-start justify-around md:justify-between">
           <div class="flex flex-row-reverse gap-2 items-center">
             <label class="block text-xs mb-1">Folder - 1</label>
             <div id="color-picker"></div>
@@ -102,7 +102,7 @@
       </aside>
 
       <!-- メイン -->
-      <main class="flex-1 flex flex-col items-center justify-center relative">
+      <main class="flex-1 flex flex-col items-center justify-center relative my-8">
 
         <!-- プレビュー -->
         <div
@@ -116,6 +116,11 @@
             viewBox="0 0 90 90"
             class="w-full h-full"
             @wheel.prevent="onWheel"
+            @pointerdown="onPointerDown"
+            @pointermove="onPointerMove"
+            @pointerup="onPointerUp"
+            @pointercancel="onPointerUp"
+            @click="onCanvasClick"
           >
             <defs>
               <linearGradient id="folderGrad" x1="0" y1="0" x2="1" y2="1">
@@ -178,8 +183,18 @@
 
             <!-- 画像 -->
             <g v-if="imageData">
+              <rect
+                v-if="activeTarget === 'image'"
+                :x="state.imagePos.x - state.imageSize / 2 - 1"
+                :y="state.imagePos.y - state.imageSize / 2 - 1"
+                :width="state.imageSize + 2"
+                :height="state.imageSize + 2"
+                fill="none"
+                stroke="#3b82f6"
+                stroke-width="0.8"
+                pointer-events="none"
+              />
               <image
-                v-if="imageData"
                 :href="imageData"
                 :x="state.imagePos.x - state.imageSize / 2"
                 :y="state.imagePos.y - state.imageSize / 2"
@@ -187,22 +202,33 @@
                 :height="state.imageSize"
                 filter="url(#shadow)"
                 @pointerdown="startDrag($event, 'image')"
+                @click.stop="onImageClick"
                 :class="isDragging ? 'cursor-grabbing' : 'cursor-grab'"
               />
               <g
+                v-if="activeTarget === 'image'"
                 @click.stop="removeImage"
                 class="cursor-pointer"
-                :opacity="isHoveringCanvas ? 1 : 0"
-                style="transition: opacity 0.15s ease"
-                :transform="`translate(${state.imagePos.x + 18}, ${state.imagePos.y - 18})`"
+                :transform="`translate(${state.imagePos.x + state.imageSize/2}, ${state.imagePos.y - state.imageSize/2})`"
               >
-                <circle r="4" fill="rgba(0,0,0,0.6)" />
+                <circle r="4" fill="rgba(0,0,0,1)" />
                 <text x="0" y="2" text-anchor="middle" font-size="6" fill="white">×</text>
               </g>
             </g>
 
             <!-- アイコン -->
             <g v-if="selectedIcon">
+              <rect
+                v-if="activeTarget === 'icon'"
+                :x="state.iconPos.x - (iconBBox.width / 2) * state.iconScale - 2"
+                :y="state.iconPos.y - (iconBBox.height / 2) * state.iconScale - 2"
+                :width="iconBBox.width * state.iconScale + 4"
+                :height="iconBBox.height * state.iconScale + 4"
+                fill="none"
+                stroke="#3b82f6"
+                stroke-width="0.8"
+                pointer-events="none"
+              />
               <g
                 :transform="`
                   translate(${state.iconPos.x}, ${state.iconPos.y})
@@ -210,6 +236,7 @@
                   translate(${-iconCenterCache.x}, ${-iconCenterCache.y})
                 `"
                 @pointerdown="startDrag($event, 'icon')"
+                @click.stop="onIconClick"
                 :class="isDragging ? 'cursor-grabbing' : 'cursor-grab'"
               >
                 <path
@@ -222,13 +249,12 @@
                 />
               </g>
               <g
+                v-if="activeTarget === 'icon'"
                 @click.stop="removeIcon"
                 class="cursor-pointer"
-                :opacity="isHoveringCanvas ? 1 : 0"
-                style="transition: opacity 0.15s ease"
-                :transform="`translate(${state.iconPos.x + 18}, ${state.iconPos.y - 18})`"
+                :transform="`translate(${state.iconPos.x + (iconBBox.width/2)*state.iconScale}, ${state.iconPos.y - (iconBBox.height/2)*state.iconScale})`"
               >
-                <circle r="4" fill="rgba(0,0,0,0.6)" />
+                <circle r="4" fill="rgba(0,0,0,1)" />
                 <text x="0" y="2" text-anchor="middle" font-size="6" fill="white">×</text>
               </g>
             </g>
@@ -236,7 +262,7 @@
         </div>
         
         <!-- ボタン -->
-        <div class="absolute bottom-10 flex gap-4">
+        <div class="mt-6 md:absolute md:bottom-10 flex gap-4">
           <button
             @click="downloadPNG"
             class="px-4 py-2 bg-teal-400 text-white rounded hover:bg-teal-300 hover:scale-105 transition">
@@ -291,6 +317,14 @@
           const imageData = ref(null);
           const iconCenterCache = ref({ x: 0, y: 0 });
           const activeTarget = ref(null);
+          const isUIVisible = ref(true);
+
+          const pointers = new Map();
+          let lastDistance = 0;
+
+          const isTouchDevice = 'ontouchstart' in window;
+
+          let dragMoved = false;
 
           // アイコンフィルタ
           const filteredIcons = computed(() => {
@@ -350,10 +384,10 @@
           // ドラッグ開始
           const startDrag = (e, type) => {
             e.preventDefault();
+            e.stopPropagation();
 
             draggingTarget = type;
-            isDragging.value = true;
-            activeTarget.value = type;
+            dragMoved = false;
 
             const p = getSVGPoint(e);
             const target = state[type + "Pos"];
@@ -363,11 +397,15 @@
             
             window.addEventListener('pointermove', onDrag);
             window.addEventListener('pointerup', stopDrag);
+            window.addEventListener('pointercancel', stopDrag);
           }
 
           // ドラッグ中
           const onDrag = (e) => {
             if (!draggingTarget) return;
+
+            dragMoved = true;
+            isDragging.value = true;
 
             const p = getSVGPoint(e);
             const target = state[draggingTarget + "Pos"];
@@ -406,18 +444,39 @@
           const stopDrag = () => {
             draggingTarget = null;
             isDragging.value = false;
-
             guide.value.showX = false;
             guide.value.showY = false;
 
             window.removeEventListener('pointermove', onDrag);
             window.removeEventListener('pointerup', stopDrag);
+            window.removeEventListener('pointercancel', stopDrag);
+
+            setTimeout(() => { dragMoved = false; }, 0);
+          };
+
+          const onIconClick = () => {
+            if (!dragMoved) activeTarget.value = 'icon';
+          };
+          const onImageClick = () => {
+            if (!dragMoved) activeTarget.value = 'image';
+          };
+
+          const onCanvasClick = (e) => {
+            if (dragMoved) {
+              dragMoved = false;
+              return;
+            }
+            activeTarget.value = null;
           };
 
           // アイコン選択
           const selectIcon = (icon) => {
             selectedIcon.value = icon;
             iconCenterCache.value = getIconCenterOffset(icon);
+
+            activeTarget.value = 'icon';
+
+            updateIconBBox(icon);
 
             state.iconPos.x = CENTER_X;
             state.iconPos.y = CENTER_Y;
@@ -434,6 +493,54 @@
             if (activeTarget.value === 'image') {
               state.imageSize += delta * 10;
               // state.imageSize = Math.max(10, Math.min(200, state.imageSize));
+            }
+          };
+
+          const resetGuide = () => {
+            draggingTarget = null;
+            isDragging.value = false;
+            guide.value.showX = false;
+            guide.value.showY = false;
+          };
+
+          const onPointerDown = (e) => {
+            pointers.set(e.pointerId, e);
+          }
+
+          const onPointerMove = (e) => {
+            if (!pointers.has(e.pointerId)) return;
+            pointers.set(e.pointerId, e);
+
+            if (pointers.size === 2) {
+              const pts = Array.from(pointers.values());
+
+              const dx = pts[0].clientX - pts[1].clientX;
+              const dy = pts[0].clientY - pts[1].clientY;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (lastDistance) {
+                const delta = dist - lastDistance;
+
+                if (activeTarget.value === "icon") {
+                  state.iconScale += delta * 0.01;
+                  state.iconScale = Math.max(0.5, Math.min(4, state.iconScale));
+                }
+
+                if (activeTarget.value === "image") {
+                  state.imageSize += delta * 0.1;
+                  state.imageSize = Math.max(20, Math.min(200, state.imageSize));
+                }
+              }
+
+              lastDistance = dist;
+            }
+          };
+
+          const onPointerUp = (e) => {
+            pointers.delete(e.pointerId);
+
+            if (pointers.size < 2) {
+              lastDistance = 0;
             }
           };
 
@@ -459,7 +566,7 @@
 
           const removeIcon = () => {
             selectedIcon.value = null;
-            iconCenterCache.value = null;
+            iconCenterCache.value = { x: 0, y: 0 };;
             state.iconScale = 1.5;
           };
 
@@ -469,6 +576,36 @@
               else if (imageData.value) removeImage();
             }
           });
+
+          const iconBBox = ref({ x: 0, y: 0, width: 0, height: 0 });
+
+          const updateIconBBox = (icon) => {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            const g = document.createElementNS(svgNS, "g");
+
+            icon.path.forEach(p => {
+              const path = document.createElementNS(svgNS, "path");
+              path.setAttribute("d", p.d);
+              g.appendChild(path);
+            });
+
+            svg.appendChild(g);
+            document.body.appendChild(svg);
+
+            const bbox = g.getBBox();
+            document.body.removeChild(svg);
+
+            iconBBox.value = {
+              x: bbox.x,
+              y: bbox.y,
+              width: bbox.width,
+              height: bbox.height,
+              // 中心オフセット（translate で使う値と同じ）
+              cx: bbox.x + bbox.width / 2,
+              cy: bbox.y + bbox.height / 2,
+            };
+          };
 
           // PNG書き出し
           const downloadPNG = () => {
@@ -634,7 +771,7 @@
           onMounted(initPickr);
 
           watch(isDragging, (v) => {
-            document.body.style.cursor = v ? 'grabbing' : 'default';
+            document.body.style.cursor = v ? 'grabbing' : '';
           });
           
           return {
@@ -658,7 +795,17 @@
             iconCenterOffset,
             guide,
             removeImage,
-            removeIcon
+            removeIcon,
+            onPointerDown,
+            onPointerMove,
+            onPointerUp,
+            isUIVisible,
+            onIconClick,
+            onImageClick,
+            onCanvasClick,
+            iconBBox,
+            updateIconBBox,
+            activeTarget
           };
         }
       }).mount("#app");
