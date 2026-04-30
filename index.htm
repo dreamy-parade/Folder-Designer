@@ -157,10 +157,17 @@
             />
 
             <!-- 前面 -->
+            <defs>
+              <!-- 切り抜き用 -->
+              <clipPath id="cut-off">
+                <path d="M86.351 80.444H3.649C1.634 80.444 0 78.81 0 76.795V29.11c0-2.015 1.634-3.649 3.649-3.649h82.703c2.015 0 3.649 1.634 3.649 3.649v47.685c0 2.015-1.634 3.649-3.649 3.649z" />
+              </clipPath>
+            </defs>
             <path
               d="M86.351 80.444H3.649C1.634 80.444 0 78.81 0 76.795V29.11c0-2.015 1.634-3.649 3.649-3.649h82.703c2.015 0 3.649 1.634 3.649 3.649v47.685c0 2.015-1.634 3.649-3.649 3.649z"
               fill="url(#folderGrad)"
-              stroke="url(#edgeGrad)" stroke-width="1" stroke-opacity="0.5"
+              stroke="url(#edgeGrad)" stroke-width="2" stroke-opacity="0.5" clip-path="url(#cut-off)"
+              
             />
 
             <g pointer-events="none">
