@@ -115,7 +115,7 @@
 
           <button
             @click="applyCustomSVG"
-            class="mt-2 px-3 py-2 bg-teal-400 text-white rounded"
+            class="mt-2 px-3 py-2 bg-teal-400 text-sm text-white rounded"
           >
             Apply SVG
           </button>
@@ -331,15 +331,15 @@
                 </g>
 
                 <!-- 削除ボタン -->
-              <g
-                v-if="activeTarget === 'icon'"
-                @click.stop="removeIcon"
-                class="cursor-pointer"
-                :transform="`translate(${state.iconPos.x + (customBBox.width / 2) * state.iconScale}, ${state.iconPos.y - (customBBox.height / 2) * state.iconScale})`"
-              >
-                <circle r="4" fill="rgba(0,0,0,1)" />
-                <text x="0" y="2" text-anchor="middle" font-size="6" fill="white">×</text>
-              </g>
+                <g
+                  v-if="activeTarget === 'icon'"
+                  @click.stop="removeIcon"
+                  class="cursor-pointer"
+                  :transform="`translate(${state.iconPos.x + (customBBox.width / 2) * state.iconScale}, ${state.iconPos.y - (customBBox.height / 2) * state.iconScale})`"
+                >
+                  <circle r="4" fill="rgba(0,0,0,1)" />
+                  <text x="0" y="2" text-anchor="middle" font-size="6" fill="white">×</text>
+                </g>
             </g>
           </svg>
         </div>
