@@ -317,7 +317,7 @@
                   `"
                   filter="url(#shadow)"
                   :fill="state.iconColor"
-                  :stroke="state.iconColor"
+                  :stroke="selectedIcon.isStroke ? state.iconColor : 'none'"
                   :color="state.iconColor"
                   @pointerdown="startDrag($event, 'icon')"
                   @click.stop="onIconClick"
@@ -645,51 +645,56 @@
             const rootFill = svgEl.getAttribute("fill");
             const rootStroke = svgEl.getAttribute("stroke");
 
+            // アイコンの種別判定
+            const isStrokeIcon = rootStroke === "currentColor";
+            const isFillIcon = rootFill === "currentColor";
+
             svgEl.querySelectorAll("*").forEach(el => {
               const elFill = el.getAttribute("fill");
               const elStroke = el.getAttribute("stroke");
 
-              // 実効的なfill/strokeを決定（要素 > 親から継承）
-              const effectiveFill = elFill ?? rootFill;
-              const effectiveStroke = elStroke ?? rootStroke;
-
-              // fill="none" + stroke="none" の透明枠パスはそのまま
+              // 透明枠パスはそのまま維持
               if (elFill === "none" && elStroke === "none") {
-                el.setAttribute("fill", "none");
                 return;
               }
 
-              // strokeがcurrentColorまたは親から継承される場合
-              if (effectiveStroke && effectiveStroke !== "none") {
-                el.setAttribute("stroke", "currentColor");
-                // stroke-widthなど他のstroke属性もルートから引き継ぐ
-                if (!el.getAttribute("stroke-width") && svgEl.getAttribute("stroke-width")) {
-                  el.setAttribute("stroke-width", svgEl.getAttribute("stroke-width"));
+              if (isStrokeIcon) {
+                // stroke系：子にstroke属性がなければcurrentColorを付与
+                if (!elStroke || elStroke === "currentColor") {
+                  el.setAttribute("stroke", "currentColor");
                 }
-                if (!el.getAttribute("stroke-linecap") && svgEl.getAttribute("stroke-linecap")) {
-                  el.setAttribute("stroke-linecap", svgEl.getAttribute("stroke-linecap"));
-                }
-                if (!el.getAttribute("stroke-linejoin") && svgEl.getAttribute("stroke-linejoin")) {
-                  el.setAttribute("stroke-linejoin", svgEl.getAttribute("stroke-linejoin"));
-                }
-                // fillがnoneでないかつ指定なしの場合はnoneに
                 if (!elFill || elFill === "none") {
                   el.setAttribute("fill", "none");
                 }
-              }
-
-              // fillがcurrentColorの場合
-              if (effectiveFill && effectiveFill !== "none" && effectiveFill !== "currentColor") {
-                el.setAttribute("fill", "currentColor");
-              } else if (effectiveFill === "currentColor") {
-                el.setAttribute("fill", "currentColor");
+                // ルートのstroke属性を継承
+                ["stroke-width", "stroke-linecap", "stroke-linejoin"].forEach(attr => {
+                  const rootAttr = svgEl.getAttribute(attr);
+                  if (!el.getAttribute(attr) && rootAttr) {
+                    el.setAttribute(attr, rootAttr);
+                  } else if (isStrokeIcon && attr === "stroke-width" && !el.getAttribute(attr)) {
+                    // strokeタイプなのに幅がない場合は、最低限2を付ける等の処理
+                    el.setAttribute(attr, "2");
+                  }
+                });
+              } else if (isFillIcon) {
+                // fill系：stroke属性は付与しない
+                if (elFill !== "none") {
+                  el.setAttribute("fill", "currentColor");
+                }
+                // 元からstrokeがある場合のみcurrentColorに
+                if (elStroke && elStroke !== "none") {
+                  el.setAttribute("stroke", "currentColor");
+                } else {
+                  el.removeAttribute("stroke");
+                }
               }
             });
 
             selectedIcon.value = {
               name: "custom",
               svg: svgEl.innerHTML,
-              viewBox: originalViewBox
+              viewBox: originalViewBox,
+              isStroke: isStrokeIcon
             };
 
             state.iconPos.x = CENTER_X;
@@ -708,6 +713,12 @@
               x: vb[0] + vb[2] / 2,
               y: vb[1] + vb[3] / 2
             };
+          });
+
+          const isCustomStrokeIcon = computed(() => {
+            if (!selectedIcon.value?.svg) return false;
+            // applyCustomSVG時に判定した種別を保持する
+            return selectedIcon.value.isStroke ?? false;
           });
 
           const customBBox = computed(() => {
